@@ -1,10 +1,102 @@
 # %%
-import os
 import csv
+import os
 from collections import defaultdict
-from datetime import datetime, timedelta, time
+from datetime import datetime, time, timedelta
+
 import pandas as pd
 
+
+import os
+import csv
+import pandas as pd
+from datetime import datetime, timedelta
+from collections import defaultdict
+
+def get_user_usb_data(user_id, dataset_path):
+    usb_data = []
+    with open(os.path.join(dataset_path, "device.csv"), "r") as csvfile:
+        reader = csv.reader(csvfile)
+        next(reader)  # Skip header
+        for row in reader:
+            if row[2] == user_id and row[5] == "Connect":  # Check user and only "Connect" activity
+                usb_data.append(row)
+    return usb_data
+
+def get_num_usb_insertions_per_week(user, usb_data):
+    weekly_usb_counts = defaultdict(int)
+    all_weeks = set()
+    for row in usb_data:
+        file_time = datetime.strptime(row[1], "%m/%d/%Y %H:%M:%S")
+        week = file_time.strftime("%Y-%W")
+        all_weeks.add(week)
+        weekly_usb_counts[week] += 1
+    
+    # Ensure all weeks are included, even with 0 count
+    min_week = min(all_weeks, default=None)
+    max_week = max(all_weeks, default=None)
+    if min_week and max_week:
+        start_date = datetime.strptime(min_week + "-1", "%Y-%W-%w")
+        end_date = datetime.strptime(max_week + "-1", "%Y-%W-%w")
+
+        current_date = start_date
+        complete_weeks = set()
+
+        while current_date <= end_date:
+            week_str = current_date.strftime("%Y-%W")
+            complete_weeks.add(week_str)
+            current_date += timedelta(days=7)
+
+        weekly_counts = {week: weekly_usb_counts.get(week, 0) for week in complete_weeks}
+    else:
+        weekly_counts = {}
+    
+    output_list = [[user, week, count] for week, count in sorted(weekly_counts.items())]
+    return pd.DataFrame(output_list, columns=["user", "week", "num_usb_insertions"])
+
+
+def get_user_exe_data(user_id, dataset_path):
+    exe_data = []
+    with open(os.path.join(dataset_path, "file.csv"), "r") as csvfile:
+        reader = csv.reader(csvfile)
+        next(reader)  # Skip header
+        for row in reader:
+            if row[2] == user_id and row[4].endswith(".exe"):  # Check user and .exe files
+                exe_data.append(row)
+    return exe_data
+
+def get_num_exe_per_week(user, exe_data):
+    weekly_exe_counts = defaultdict(int)
+    all_weeks = set()
+    
+    for row in exe_data:
+        file_time = datetime.strptime(row[1], "%m/%d/%Y %H:%M:%S")
+        week = file_time.strftime("%Y-%W")
+        all_weeks.add(week)
+        weekly_exe_counts[week] += 1
+    
+    # Ensure all weeks are included, even with 0 count
+    min_week = min(all_weeks, default=None)
+    max_week = max(all_weeks, default=None)
+    
+    if min_week and max_week:
+        start_date = datetime.strptime(min_week + "-1", "%Y-%W-%w")
+        end_date = datetime.strptime(max_week + "-1", "%Y-%W-%w")
+
+        current_date = start_date
+        complete_weeks = set()
+
+        while current_date <= end_date:
+            week_str = current_date.strftime("%Y-%W")
+            complete_weeks.add(week_str)
+            current_date += timedelta(days=7)
+
+        weekly_counts = {week: weekly_exe_counts.get(week, 0) for week in complete_weeks}
+    else:
+        weekly_counts = {}
+    
+    output_list = [[user, week, count] for week, count in sorted(weekly_counts.items())]
+    return pd.DataFrame(output_list, columns=["user", "week", "num_exe_files"])
 
 # %%
 def get_user_logon_data(user_id, dataset_path):
@@ -217,15 +309,42 @@ def label_insider_weeks(df, user, insider_root):
     return df
 
 
-# %%
-user = "JBI1134"
+def combine_user_feature_data(user, dataset_path, insider_root):
+    # Get data from different feature functions
+    logon_data = get_user_logon_data(user, dataset_path)
+    user_pc = get_user_pc(logon_data)
+    num_other_pc = get_num_other_PC_per_week(user, user_pc, logon_data)
+    after_hours_logons = get_after_hours_logons(logon_data, user)
 
-logon_data = get_user_logon_data(user, os.path.join("Insider threat dataset", "r5.2"))
-user_pc = get_user_pc(logon_data)
-num_other_pc = get_num_other_PC_per_week(user, user_pc, logon_data)
-after_hours_logons = get_after_hours_logons(logon_data, user)
-labeled_df = label_insider_weeks(
-    after_hours_logons, user, os.path.join("Insider threat dataset", "answers")
-)
-print(labeled_df[labeled_df])
-print(after_hours_logons)
+    exe_data = get_user_exe_data(user, dataset_path)
+    num_exe_files = get_num_exe_per_week(user, exe_data)
+
+    usb_data = get_user_usb_data(user, dataset_path)
+    num_usb = get_num_usb_insertions_per_week(user, usb_data)
+
+    # Extract relevant columns
+    after_hours_df = after_hours_logons[["week", "after_hours_logons"]]
+    exe_df         = num_exe_files[["week", "num_exe_files"]]
+    usb_df         = num_usb[["week", "num_usb_insertions"]]
+    other_pc_df    = num_other_pc[["week", "num_other_pc"]]
+
+    # Merge all dataframes on "week" using an outer join
+    merged_df = after_hours_df.merge(exe_df, on="week", how="outer") \
+                              .merge(usb_df, on="week", how="outer") \
+                              .merge(other_pc_df, on="week", how="outer")
+
+    # Replace NaN with 0 in all feature columns
+    merged_df.fillna(0, inplace=True)
+
+    # Add user column
+    merged_df.insert(0, "user", user)
+    labeled_df = label_insider_weeks(merged_df, user, insider_root)
+    return labeled_df
+
+# Example usage
+dataset_path = os.path.join("Insider threat dataset", "r5.2")
+user = "JBI1134"
+insider_root = os.path.join("Insider threat dataset", "answers")
+final_df = combine_user_feature_data(user, dataset_path, insider_root)
+print(final_df)
+
