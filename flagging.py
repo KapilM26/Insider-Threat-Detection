@@ -1,6 +1,7 @@
 import os
 import csv
 import pickle
+from tqdm import tqdm
 
 MALICIOUS_DOMAINS = ['wikileaks']
 
@@ -42,7 +43,7 @@ def detect_malicious_domain_users(dataset_path):
     malicious_users = set()
     with open(os.path.join(dataset_path, "http.csv"), "r") as csvfile:
         reader = csv.reader(csvfile)
-        for row in reader:
+        for row in tqdm(reader):
             url = row[4]
             for m in MALICIOUS_DOMAINS:
                 if m in url:
@@ -79,7 +80,7 @@ def get_other_pc_users(dataset_path):
     done_users = set()
     with open(os.path.join(dataset_path, "logon.csv"), "r") as csvfile:
         reader = csv.reader(csvfile)
-        for row in reader:
+        for row in tqdm(reader):
             user_id = row[2]
             if user_id not in done_users:
                 logon_data = get_user_logon_data(user_id, dataset_path)
@@ -105,7 +106,7 @@ def flag_s2_s3_users(dataset_path, vec_s2_path, vec_s3_path, org_domain='dtaa.co
         reader = csv.reader(csvfile)
         next(reader)  # Skip header explicitly
 
-        for row in reader:
+        for row in tqdm(reader):
             user_id = row[2]
             recipients = (row[4]+';'+row[5]+';'+row[6]).split(';')
             recipients = [email.strip() for email in recipients if email.strip()]
@@ -119,14 +120,17 @@ def flag_s2_s3_users(dataset_path, vec_s2_path, vec_s3_path, org_domain='dtaa.co
     return flagged_users
 
 def get_flagged_users(dataset_path, s2_vectorizer_path, s3_vectorizer_path):
+    print('getting other pc users..')
     other_pc_users = get_other_pc_users(dataset_path)
     with open('other_pc_users.pkl', 'wb') as f:
         pickle.dump(other_pc_users, f)
     print('other pc done')
+    print('getting malicious domain users..')
     malicious_domain_users = detect_malicious_domain_users(dataset_path)
     with open('malicious_domain_users.pkl', 'wb') as f:
         pickle.dump(malicious_domain_users, f)
     print('mal domain done')
+    print('getting email keyword users..')
     s2_s3_flagged = flag_s2_s3_users(dataset_path, s2_vectorizer_path, s3_vectorizer_path)
     with open('s2_s3_flagged.pkl', 'wb') as f:
         pickle.dump(s2_s3_flagged, f)
