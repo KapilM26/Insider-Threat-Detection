@@ -76,14 +76,16 @@ def check_other_pc_login(logon_data):
 
 def get_other_pc_users(dataset_path):
     other_pc_users = set()
+    done_users = set()
     with open(os.path.join(dataset_path, "logon.csv"), "r") as csvfile:
         reader = csv.reader(csvfile)
         for row in reader:
             user_id = row[2]
-            logon_data = get_user_logon_data(user_id, dataset_path)
-            if check_other_pc_login(logon_data):
-                other_pc_users.add(user_id)
-                print(user_id)
+            if user_id not in done_users:
+                logon_data = get_user_logon_data(user_id, dataset_path)
+                if check_other_pc_login(logon_data):
+                    other_pc_users.add(user_id)
+                done_users.add(user_id)
     return other_pc_users
 
 def flag_s2_s3_users(dataset_path, vec_s2_path, vec_s3_path, org_domain='dtaa.com'):
@@ -118,8 +120,17 @@ def flag_s2_s3_users(dataset_path, vec_s2_path, vec_s3_path, org_domain='dtaa.co
 
 def get_flagged_users(dataset_path, s2_vectorizer_path, s3_vectorizer_path):
     other_pc_users = get_other_pc_users(dataset_path)
+    with open('other_pc_users.pkl', 'wb') as f:
+        pickle.dump(other_pc_users, f)
+    print('other pc done')
     malicious_domain_users = detect_malicious_domain_users(dataset_path)
+    with open('malicious_domain_users.pkl', 'wb') as f:
+        pickle.dump(malicious_domain_users, f)
+    print('mal domain done')
     s2_s3_flagged = flag_s2_s3_users(dataset_path, s2_vectorizer_path, s3_vectorizer_path)
+    with open('s2_s3_flagged.pkl', 'wb') as f:
+        pickle.dump(s2_s3_flagged, f)
+    print('email keywords done')
 
     all_flagged_users = other_pc_users.union(malicious_domain_users, s2_s3_flagged)
     return list(all_flagged_users)
