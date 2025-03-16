@@ -343,8 +343,10 @@ def combine_user_feature_data(user, dataset_path, insider_root):
 
 # Example usage
 dataset_path = os.path.join("Insider threat dataset", "r5.2")
-user = "JBI1134"
+user = "MIB0203"
 insider_root = os.path.join("Insider threat dataset", "answers")
 final_df = combine_user_feature_data(user, dataset_path, insider_root)
 print(final_df)
 
+
+# %%
