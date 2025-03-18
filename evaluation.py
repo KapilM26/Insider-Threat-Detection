@@ -84,12 +84,16 @@ def evaluate(dataset_path, insider_root, flagged_users, all_users, malicious_use
     user_FP = len(final_flagged_users & total_normal_users)
 
     UDR = user_TP / len(total_malicious_users)
+    UFPR = user_FP / len(total_normal_users)
 
     print(f"User-level Detection Rate (UDR): {UDR:.4f}")
+    print(f"User-level False Positive Rate (UFPR): {UFPR:.4f}")
 
     instance_DR = flagged_malicious_instances / malicious_instances
+    instance_FPR = flagged_normal_instances / normal_instances if normal_instances else 0
 
     print(f"Instance-level Detection Rate (DR): {instance_DR:.4f}")
+    print(f"Instance-level False Positive Rate (FPR): {instance_FPR:.4f}")
 
 if __name__=='__main__':
     dataset_path = 'Insider threat dataset\\r5.2'
@@ -98,4 +102,4 @@ if __name__=='__main__':
     insider_root = 'Insider threat dataset\\answers'
     flagged_users = get_flagged_users(dataset_path, s2_vectorizer_path, s3_vectorizer_path)
     all_users, malicious_users = get_gt_user_list(dataset_path, insider_root)
-    print(len(flagged_users), len(all_users), len(malicious_users))
+    evaluate(dataset_path, insider_root, flagged_users, all_users, malicious_users)
