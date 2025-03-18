@@ -5,7 +5,7 @@ import pickle
 from anomaly_detection import predict_anomalies
 from feature_extraction import get_user_feature_data
 from flagging import get_flagged_users
-
+from tqdm import tqdm
 
 def get_gt_user_list(dataset_path, insider_root):
     if os.path.exists('all_users.pkl'):
@@ -41,7 +41,7 @@ def get_gt_user_list(dataset_path, insider_root):
     return all_users, malicious_users  
 
 
-def evaluate(dataset_path, insider_root, flagged_users, all_users, malicious_users):
+def evaluate(dataset_path, insider_root, flagged_users, all_users, malicious_users, algorithm='lof', model_params={'n_neighbors':20, 'contamination':0.025}, decision_threshold=-1.5):
     total_users = set(all_users)
     total_malicious_users = set(malicious_users)
     total_normal_users = total_users - total_malicious_users
@@ -55,9 +55,9 @@ def evaluate(dataset_path, insider_root, flagged_users, all_users, malicious_use
     malicious_instances = 0
     normal_instances = 0
 
-    for user in flagged_users:
+    for user in tqdm(flagged_users):
         user_data = get_user_feature_data(user, dataset_path, insider_root)
-        predictions = predict_anomalies(user_data)
+        predictions = predict_anomalies(user_data, algorithm, model_params, decision_threshold)
 
         user_data['anomaly_pred'] = predictions
 
@@ -95,11 +95,18 @@ def evaluate(dataset_path, insider_root, flagged_users, all_users, malicious_use
     print(f"Instance-level Detection Rate (DR): {instance_DR:.4f}")
     print(f"Instance-level False Positive Rate (FPR): {instance_FPR:.4f}")
 
-if __name__=='__main__':
+def run_evaluation():
     dataset_path = 'Insider threat dataset\\r5.2'
     s2_vectorizer_path = 'models\\s2_vectorizer.pkl'
     s3_vectorizer_path = 'models\\s3_vectorizer.pkl'
     insider_root = 'Insider threat dataset\\answers'
+    algorithms = {'lof':({'n_neighbors':20, 'contamination':0.025}, -1.5), 'ocsvm':({'kernel':"rbf", "gamma":"scale", "nu":0.9},-1.5), 'iforest':({'contamination':'auto'}, -0.8)}
     flagged_users = get_flagged_users(dataset_path, s2_vectorizer_path, s3_vectorizer_path)
     all_users, malicious_users = get_gt_user_list(dataset_path, insider_root)
-    evaluate(dataset_path, insider_root, flagged_users, all_users, malicious_users)
+    for algorithm, (model_params, decision_threshold) in algorithms.items():
+        print(f"Evaluating algorithm: {algorithm}")
+        evaluate(dataset_path, insider_root, flagged_users, all_users, malicious_users, algorithm, model_params, decision_threshold)
+
+
+if __name__=='__main__':
+    run_evaluation()

@@ -1,9 +1,17 @@
 from sklearn.neighbors import LocalOutlierFactor
+from sklearn.svm import OneClassSVM
+from sklearn.ensemble import IsolationForest
 import numpy as np
 
 def predict_anomalies(user_data, algorithm='lof', model_params={'n_neighbors':20, 'contamination':0.025}, decision_threshold=-1.5):
     if algorithm=='lof':
         model = LocalOutlierFactor(**model_params)
+    elif algorithm=='ocsvm':
+        model = OneClassSVM(**model_params)
+    elif algorithm=='iforest':
+        model = IsolationForest(**model_params)
+    else:
+        print('Model should be one of ocsvm, lof or iforest')
     feature_cols = ["after_hours_logons", "num_exe_files", "num_usb_insertions", "num_other_pc"]
     X = user_data[feature_cols]
     y_pred = model.fit_predict(X)  # Assuming X_train is your feature matrix
