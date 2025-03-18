@@ -304,6 +304,7 @@ def label_insider_weeks(df, user, insider_root):
 
 
 def get_user_feature_data(user, dataset_path, insider_root):
+    os.makedirs('user_features', exist_ok=True)
     if os.path.exists(f'user_features/{user}.pkl'):
         with open(f'user_features/{user}.pkl', 'rb') as f:
             labeled_df = pickle.load(f)
