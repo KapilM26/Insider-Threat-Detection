@@ -1,17 +1,11 @@
-# %%
 import csv
 import os
+import pickle
 from collections import defaultdict
 from datetime import datetime, time, timedelta
 
 import pandas as pd
 
-
-import os
-import csv
-import pandas as pd
-from datetime import datetime, timedelta
-from collections import defaultdict
 
 def get_user_usb_data(user_id, dataset_path):
     usb_data = []
@@ -309,44 +303,51 @@ def label_insider_weeks(df, user, insider_root):
     return df
 
 
-def combine_user_feature_data(user, dataset_path, insider_root):
+def get_user_feature_data(user, dataset_path, insider_root):
+    if os.path.exists(f'user_features/{user}.pkl'):
+        with open(f'user_features/{user}.pkl', 'rb') as f:
+            labeled_df = pickle.load(f)
+    else:
     # Get data from different feature functions
-    logon_data = get_user_logon_data(user, dataset_path)
-    user_pc = get_user_pc(logon_data)
-    num_other_pc = get_num_other_PC_per_week(user, user_pc, logon_data)
-    after_hours_logons = get_after_hours_logons(logon_data, user)
+        logon_data = get_user_logon_data(user, dataset_path)
+        user_pc = get_user_pc(logon_data)
+        num_other_pc = get_num_other_PC_per_week(user, user_pc, logon_data)
+        after_hours_logons = get_after_hours_logons(logon_data, user)
 
-    exe_data = get_user_exe_data(user, dataset_path)
-    num_exe_files = get_num_exe_per_week(user, exe_data)
+        exe_data = get_user_exe_data(user, dataset_path)
+        num_exe_files = get_num_exe_per_week(user, exe_data)
 
-    usb_data = get_user_usb_data(user, dataset_path)
-    num_usb = get_num_usb_insertions_per_week(user, usb_data)
+        usb_data = get_user_usb_data(user, dataset_path)
+        num_usb = get_num_usb_insertions_per_week(user, usb_data)
 
-    # Extract relevant columns
-    after_hours_df = after_hours_logons[["week", "after_hours_logons"]]
-    exe_df         = num_exe_files[["week", "num_exe_files"]]
-    usb_df         = num_usb[["week", "num_usb_insertions"]]
-    other_pc_df    = num_other_pc[["week", "num_other_pc"]]
+        # Extract relevant columns
+        after_hours_df = after_hours_logons[["week", "after_hours_logons"]]
+        exe_df         = num_exe_files[["week", "num_exe_files"]]
+        usb_df         = num_usb[["week", "num_usb_insertions"]]
+        other_pc_df    = num_other_pc[["week", "num_other_pc"]]
 
-    # Merge all dataframes on "week" using an outer join
-    merged_df = after_hours_df.merge(exe_df, on="week", how="outer") \
-                              .merge(usb_df, on="week", how="outer") \
-                              .merge(other_pc_df, on="week", how="outer")
+        # Merge all dataframes on "week" using an outer join
+        merged_df = after_hours_df.merge(exe_df, on="week", how="outer") \
+                                .merge(usb_df, on="week", how="outer") \
+                                .merge(other_pc_df, on="week", how="outer")
 
-    # Replace NaN with 0 in all feature columns
-    merged_df.fillna(0, inplace=True)
+        # Replace NaN with 0 in all feature columns
+        merged_df.fillna(0, inplace=True)
 
-    # Add user column
-    merged_df.insert(0, "user", user)
-    labeled_df = label_insider_weeks(merged_df, user, insider_root)
+        # Add user column
+        merged_df.insert(0, "user", user)
+        labeled_df = label_insider_weeks(merged_df, user, insider_root)
+        with open(f'user_features/{user}.pkl', 'wb') as f:
+            pickle.dump(labeled_df, f)
     return labeled_df
 
 # Example usage
-dataset_path = os.path.join("Insider threat dataset", "r5.2")
-user = "MIB0203"
-insider_root = os.path.join("Insider threat dataset", "answers")
-final_df = combine_user_feature_data(user, dataset_path, insider_root)
-print(final_df)
+if __name__ =='__main__':
+    dataset_path = os.path.join("Insider threat dataset", "r5.2")
+    user = "MIB0203"
+    insider_root = os.path.join("Insider threat dataset", "answers")
+    final_df = get_user_feature_data(user, dataset_path, insider_root)
+    print(final_df)
 
 
 # %%

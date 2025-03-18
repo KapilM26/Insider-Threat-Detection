@@ -120,31 +120,37 @@ def flag_s2_s3_users(dataset_path, vec_s2_path, vec_s3_path, org_domain='dtaa.co
     return flagged_users
 
 def get_flagged_users(dataset_path, s2_vectorizer_path, s3_vectorizer_path):
-    print('getting other pc users..')
-    other_pc_users = get_other_pc_users(dataset_path)
-    with open('other_pc_users.pkl', 'wb') as f:
-        pickle.dump(other_pc_users, f)
-    print('other pc done')
-    print('getting malicious domain users..')
-    malicious_domain_users = detect_malicious_domain_users(dataset_path)
-    with open('malicious_domain_users.pkl', 'wb') as f:
-        pickle.dump(malicious_domain_users, f)
-    print('mal domain done')
-    print('getting email keyword users..')
-    s2_s3_flagged = flag_s2_s3_users(dataset_path, s2_vectorizer_path, s3_vectorizer_path)
-    with open('s2_s3_flagged.pkl', 'wb') as f:
-        pickle.dump(s2_s3_flagged, f)
-    print('email keywords done')
+    if os.path.exists('flagged_users.pkl'):
+        with open('flagged_users.pkl', 'rb') as f:
+            all_flagged_users = pickle.load(f)
+        return all_flagged_users
+    else:
+        print('getting other pc users..')
+        other_pc_users = get_other_pc_users(dataset_path)
+        with open('other_pc_users.pkl', 'wb') as f:
+            pickle.dump(other_pc_users, f)
+        print('other pc done')
+        print('getting malicious domain users..')
+        malicious_domain_users = detect_malicious_domain_users(dataset_path)
+        with open('malicious_domain_users.pkl', 'wb') as f:
+            pickle.dump(malicious_domain_users, f)
+        print('mal domain done')
+        print('getting email keyword users..')
+        s2_s3_flagged = flag_s2_s3_users(dataset_path, s2_vectorizer_path, s3_vectorizer_path)
+        with open('s2_s3_flagged.pkl', 'wb') as f:
+            pickle.dump(s2_s3_flagged, f)
+        print('email keywords done')
 
-    all_flagged_users = other_pc_users.union(malicious_domain_users, s2_s3_flagged)
-    return list(all_flagged_users)
+        all_flagged_users = other_pc_users.union(malicious_domain_users, s2_s3_flagged)
+        return list(all_flagged_users)
 
-dataset_path = 'Insider threat dataset\\r5.2'
-s2_vectorizer_path = 'models\\s2_vectorizer.pkl'
-s3_vectorizer_path = 'models\\s3_vectorizer.pkl'
-flagged_users = get_flagged_users(dataset_path, s2_vectorizer_path, s3_vectorizer_path)
+if __name__ == '__main__':
+    dataset_path = 'Insider threat dataset\\r5.2'
+    s2_vectorizer_path = 'models\\s2_vectorizer.pkl'
+    s3_vectorizer_path = 'models\\s3_vectorizer.pkl'
+    flagged_users = get_flagged_users(dataset_path, s2_vectorizer_path, s3_vectorizer_path)
 
 
 
-with open('flagged_users.pkl', 'wb') as f:
-    pickle.dump(flagged_users, f)
+    with open('flagged_users.pkl', 'wb') as f:
+        pickle.dump(flagged_users, f)
