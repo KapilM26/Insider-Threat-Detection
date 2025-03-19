@@ -7,6 +7,9 @@ from feature_extraction import get_user_feature_data
 from flagging import get_flagged_users
 from tqdm import tqdm
 
+import warnings
+warnings.filterwarnings('ignore')
+
 def get_gt_user_list(dataset_path, insider_root):
     if os.path.exists('all_users.pkl'):
         with open('all_users.pkl', 'rb') as f:
