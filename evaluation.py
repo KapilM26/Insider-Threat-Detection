@@ -103,7 +103,11 @@ def run_evaluation():
     s2_vectorizer_path = 'models\\s2_vectorizer.pkl'
     s3_vectorizer_path = 'models\\s3_vectorizer.pkl'
     insider_root = 'Insider threat dataset\\answers'
-    algorithms = {'lof':({'n_neighbors':20, 'contamination':0.025}, -1.5), 'ocsvm':({'kernel':"rbf", "gamma":"scale", "nu":0.9},-1.5), 'iforest':({'contamination':'auto'}, -0.8)}
+    algorithms = {
+        'iforest':({'contamination':0.25}, -0.025), 
+        'lof':({'n_neighbors':20, 'contamination':0.01}, -1.0), 
+        'ocsvm':({'kernel':"rbf", "gamma":"scale", "nu":0.99},-0.5)
+        }
     flagged_users = get_flagged_users(dataset_path, s2_vectorizer_path, s3_vectorizer_path)
     all_users, malicious_users = get_gt_user_list(dataset_path, insider_root)
     for algorithm, (model_params, decision_threshold) in algorithms.items():
